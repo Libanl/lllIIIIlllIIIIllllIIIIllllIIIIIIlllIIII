@@ -83,10 +83,12 @@ class GameVM(
     }
 
     override fun resetGame() {
+        job?.cancel() // Cancel any ongoing game job
         _score.value = 0
         correctResponses = 0
         currentEventIndex = 0
-        _gameState.value = GameState() // Reset game state to initial
+        _gameState.value = GameState(currentEventIndex = 0, correctResponses = 0) // Reset GameState with initial values
+        events = emptyArray() // Clear events to avoid leftover data from previous game
     }
 
     override fun checkMatch(selectedIndex: Int) {
