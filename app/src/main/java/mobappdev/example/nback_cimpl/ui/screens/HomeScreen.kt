@@ -109,7 +109,7 @@ fun HomeScreen(
                         val feedbackMessage = if (gameState.feedback.isNotEmpty()) {
                             gameState.feedback
                         } else {
-                            "Incorrect!"
+                            "No feedback from the input"
                         }
                         scope.launch {
                             snackBarHostState.showSnackbar(
