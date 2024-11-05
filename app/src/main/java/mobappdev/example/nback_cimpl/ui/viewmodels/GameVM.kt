@@ -94,8 +94,11 @@ class GameVM(
             val expectedMatch = events[currentEventIndex - nBack]
             if (selectedIndex == expectedMatch) {
                 _score.value += 1
-                correctResponses+=1
-                _gameState.value = _gameState.value.copy(feedback = "Correct!")
+                correctResponses += 1
+                _gameState.value = _gameState.value.copy(
+                    feedback = "Correct!",
+                    correctResponses = correctResponses // Update GameState with the new correctResponses
+                )
             } else {
                 _gameState.value = _gameState.value.copy(feedback = "Incorrect!")
             }
@@ -104,15 +107,12 @@ class GameVM(
 
     private suspend fun runVisualGame() {
         for (i in events.indices) {
-            // Set the current event value and update the current index in GameState
-            currentEventIndex = i  // Update `currentEventIndex` directly
-            _gameState.value = _gameState.value.copy(
-                eventValue = events[i],
-                feedback = "",
-                currentEventIndex = currentEventIndex  // Reflect the update in GameState
-            )
-
+            _gameState.value = _gameState.value.copy(eventValue = events[i], feedback = "")
             delay(eventInterval)
+            currentEventIndex++
+
+            // Update GameState with the current index for UI
+            _gameState.value = _gameState.value.copy(currentEventIndex = currentEventIndex)
         }
 
         // After processing all events, we show the game over state

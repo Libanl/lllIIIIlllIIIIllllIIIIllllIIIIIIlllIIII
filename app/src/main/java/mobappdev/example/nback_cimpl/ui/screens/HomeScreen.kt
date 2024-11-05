@@ -122,7 +122,7 @@ fun HomeScreen(
 
                 // Display current event index and correct responses
                 Text(
-                    text = "Current Event: ${gameState.currentEventIndex + 1} | Correct Responses: ${vm.score}",
+                    text = "Current Event: ${gameState.currentEventIndex + 1} | Correct Responses: ${gameState.correctResponses}",
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
