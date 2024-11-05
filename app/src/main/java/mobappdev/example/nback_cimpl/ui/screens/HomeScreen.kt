@@ -61,10 +61,10 @@ fun HomeScreen(
 ) {
     val highscore by vm.highscore.collectAsState()  // Highscore is its own StateFlow
     val score by vm.score.collectAsState()          // Collect the current score
-    val gameState by vm.gameState.collectAsState()
+    val gameState by vm.gameState.collectAsState()  // Collect the current game state
     val snackBarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val showGrid = remember { mutableStateOf(false) }
+    val showGrid = remember { mutableStateOf(false) } // Control grid visibility
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackBarHostState) }
@@ -78,16 +78,26 @@ fun HomeScreen(
         ) {
             Text(
                 modifier = Modifier.padding(32.dp),
-                text = "High-Score = $highscore",
+                text = "High Score: $highscore",
                 style = MaterialTheme.typography.headlineLarge
             )
 
             // Display current score
             Text(
                 modifier = Modifier.padding(16.dp),
-                text = "Current Score = $score",
+                text = "Current Score: $score",
                 style = MaterialTheme.typography.headlineMedium
             )
+
+            // Display current settings
+            Text(
+                text = "Settings: ${gameState.gameType} | N: ${vm.nBack} | Interval: ${vm.eventInterval / 1000} seconds | Events in Round: ${vm.totalNrOfEvents}",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Button(onClick = { vm.resetGame() }) {  // Trigger `resetGame` on button click
+                Text(text = "Reset Game")
+            }
 
             // Show the game grid if the user has clicked the visual button
             if (showGrid.value) {
@@ -99,7 +109,7 @@ fun HomeScreen(
                         val feedbackMessage = if (gameState.feedback.isNotEmpty()) {
                             gameState.feedback
                         } else {
-                            "No feedback yet"
+                            "Incorrect!"
                         }
                         scope.launch {
                             snackBarHostState.showSnackbar(
@@ -108,6 +118,12 @@ fun HomeScreen(
                             )
                         }
                     }
+                )
+
+                // Display current event index and correct responses
+                Text(
+                    text = "Current Event: ${gameState.currentEventIndex + 1} | Correct Responses: ${vm.score}",
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
 
@@ -122,12 +138,17 @@ fun HomeScreen(
                     if (gameState.eventValue != -1) {
                         Text(
                             modifier = Modifier.fillMaxWidth(),
-                            text = "Current eventValue is: ${gameState.eventValue}",
+                            text = "Current Event Value: ${gameState.eventValue}",
                             textAlign = TextAlign.Center
                         )
                     }
-                    Button(onClick = vm::startGame) {
-                        Text(text = "Single Nback test")
+
+                    // Button to start the N-back game
+                    Button(onClick = {
+                        showGrid.value = true // Show the grid when starting the game
+                        vm.startGame() // Start the game logic
+                    }) {
+                        Text(text = "Single N-Back Test")
                     }
                 }
             }
@@ -145,10 +166,12 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Audio Button
                 Button(onClick = {
                     scope.launch {
                         snackBarHostState.showSnackbar(
-                            message = "Hey! you clicked the audio button"
+                            message = "Starting Audio N-Back Game!",
+                            duration = SnackbarDuration.Short
                         )
                     }
                 }) {
@@ -160,16 +183,16 @@ fun HomeScreen(
                             .aspectRatio(3f / 2f)
                     )
                 }
-                Button(
-                    onClick = {
-                        showGrid.value = true
-                        scope.launch {
-                            snackBarHostState.showSnackbar(
-                                message = "Hey! you clicked the visual button",
-                                duration = SnackbarDuration.Short
-                            )
-                        }
-                    }) {
+                // Visual Button
+                Button(onClick = {
+                    showGrid.value = true
+                    scope.launch {
+                        snackBarHostState.showSnackbar(
+                            message = "Starting Visual N-Back Game!",
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                }) {
                     Icon(
                         painter = painterResource(id = R.drawable.visual),
                         contentDescription = "Visual",
