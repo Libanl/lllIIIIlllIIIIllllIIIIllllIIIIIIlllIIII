@@ -1,0 +1,5 @@
+# ninja log v5
+16	1703	7525122411823376	CMakeFiles/JniBridge.dir/JniBridge.c.o	6126842800dbd30d
+4	1730	7525122411823376	CMakeFiles/nback_cimpl.dir/nback.c.o	5501ff29881e02bc
+1731	2523	7525122419270051	C:/Users/liifa/Downloads/familjehjalpen-main/nback_skeletoncode/app/build/intermediates/cxx/Debug/3e01z3q1/obj/x86_64/libnback_cimpl.so	ba4122a4cd2f79b1
+2525	2951	7525122424434018	C:/Users/liifa/Downloads/familjehjalpen-main/nback_skeletoncode/app/build/intermediates/cxx/Debug/3e01z3q1/obj/x86_64/libJniBridge.so	3dc87295eb61c5d9
