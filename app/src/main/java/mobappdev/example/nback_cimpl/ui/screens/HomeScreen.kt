@@ -2,6 +2,7 @@ package mobappdev.example.nback_cimpl.ui.screens
 
 import GameViewModel
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -58,9 +60,11 @@ fun HomeScreen(
     vm: GameViewModel
 ) {
     val highscore by vm.highscore.collectAsState()  // Highscore is its own StateFlow
+    val score by vm.score.collectAsState()          // Collect the current score
     val gameState by vm.gameState.collectAsState()
     val snackBarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val showGrid = remember { mutableStateOf(false) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackBarHostState) }
@@ -78,8 +82,34 @@ fun HomeScreen(
                 style = MaterialTheme.typography.headlineLarge
             )
 
-            // 3x3 Game Grid that highlights based on the eventValue
-            GameGrid(currentEventIndex = gameState.eventValue)
+            // Display current score
+            Text(
+                modifier = Modifier.padding(16.dp),
+                text = "Current Score = $score",
+                style = MaterialTheme.typography.headlineMedium
+            )
+
+            // Show the game grid if the user has clicked the visual button
+            if (showGrid.value) {
+                GameGrid(
+                    currentEventIndex = gameState.eventValue,
+                    onCellClick = { selectedIndex ->
+                        // Call checkMatch when a cell is clicked
+                        vm.checkMatch(selectedIndex)
+                        val feedbackMessage = if (gameState.feedback.isNotEmpty()) {
+                            gameState.feedback
+                        } else {
+                            "No feedback yet"
+                        }
+                        scope.launch {
+                            snackBarHostState.showSnackbar(
+                                message = feedbackMessage,
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                    }
+                )
+            }
 
             Box(
                 modifier = Modifier.weight(1f),
@@ -132,6 +162,7 @@ fun HomeScreen(
                 }
                 Button(
                     onClick = {
+                        showGrid.value = true
                         scope.launch {
                             snackBarHostState.showSnackbar(
                                 message = "Hey! you clicked the visual button",
@@ -153,7 +184,7 @@ fun HomeScreen(
 }
 
 @Composable
-fun GameGrid(currentEventIndex: Int) {
+fun GameGrid(currentEventIndex: Int, onCellClick: (Int) -> Unit) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
         contentPadding = PaddingValues(16.dp),
@@ -162,18 +193,21 @@ fun GameGrid(currentEventIndex: Int) {
             .aspectRatio(1f)
     ) {
         items(9) { index ->
-            GridCell(isActive = index == currentEventIndex)
+            GridCell(
+                isActive = index == currentEventIndex,
+                onClick = { onCellClick(index) } // Pass cell index on click
+            )
         }
     }
 }
-
 @Composable
-fun GridCell(isActive: Boolean) {
+fun GridCell(isActive: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .padding(4.dp)
             .size(80.dp)
             .background(if (isActive) Color.Yellow else Color.LightGray)
+            .clickable { onClick() } // Handle clicks
     )
 }
 

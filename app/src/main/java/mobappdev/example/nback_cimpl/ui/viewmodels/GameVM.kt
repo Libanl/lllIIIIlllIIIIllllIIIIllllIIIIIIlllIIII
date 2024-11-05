@@ -22,7 +22,7 @@ interface GameViewModel {
 
     fun setGameType(gameType: GameVM.Companion.GameType)
     fun startGame()
-    fun checkMatch()
+    fun checkMatch(selectedIndex: Int)
 }
 
 class GameVM(
@@ -72,20 +72,16 @@ class GameVM(
         }
     }
 
-    override fun checkMatch() {
+    override fun checkMatch(selectedIndex: Int) {
         if (currentEventIndex >= nBack) {
             val expectedMatch = events[currentEventIndex - nBack]
-            val actualEvent = events[currentEventIndex]
 
-            // Ensure a match is only checked once per event
-            if (lastMatchIndex != currentEventIndex) {
-                if (actualEvent == expectedMatch) {
-                    _score.value += 1
-                    _gameState.value = _gameState.value.copy(feedback = "Correct!")
-                } else {
-                    _gameState.value = _gameState.value.copy(feedback = "Incorrect!")
-                }
-                lastMatchIndex = currentEventIndex
+            // Check if the clicked cell index matches the expected match
+            if (selectedIndex == expectedMatch) {
+                _score.value += 1
+                _gameState.value = _gameState.value.copy(feedback = "Correct!")
+            } else {
+                _gameState.value = _gameState.value.copy(feedback = "Incorrect!")
             }
         }
     }
@@ -169,7 +165,7 @@ class GameVM(
         override fun startGame() {
         }
 
-        override fun checkMatch() {
+        override fun checkMatch(selectedIndex: Int) {
         }
     }
 }
