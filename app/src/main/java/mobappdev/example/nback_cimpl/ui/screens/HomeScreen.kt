@@ -1,14 +1,20 @@
 package mobappdev.example.nback_cimpl.ui.screens
 
+import GameViewModel
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -25,14 +31,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import mobappdev.example.nback_cimpl.R
-import mobappdev.example.nback_cimpl.ui.viewmodels.FakeVM
-import mobappdev.example.nback_cimpl.ui.viewmodels.GameViewModel
+
 
 /**
  * This is the Home screen composable
@@ -71,7 +77,10 @@ fun HomeScreen(
                 text = "High-Score = $highscore",
                 style = MaterialTheme.typography.headlineLarge
             )
-            // Todo: You'll probably want to change this "BOX" part of the composable
+
+            // 3x3 Game Grid that highlights based on the eventValue
+            GameGrid(currentEventIndex = gameState.eventValue)
+
             Box(
                 modifier = Modifier.weight(1f),
                 contentAlignment = Alignment.Center
@@ -88,15 +97,17 @@ fun HomeScreen(
                         )
                     }
                     Button(onClick = vm::startGame) {
-                        Text(text = "Generate eventValues")
+                        Text(text = "Single Nback test")
                     }
                 }
             }
+
             Text(
                 modifier = Modifier.padding(16.dp),
                 text = "Start Game".uppercase(),
                 style = MaterialTheme.typography.displaySmall
             )
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -105,7 +116,6 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Button(onClick = {
-                    // Todo: change this button behaviour
                     scope.launch {
                         snackBarHostState.showSnackbar(
                             message = "Hey! you clicked the audio button"
@@ -122,7 +132,6 @@ fun HomeScreen(
                 }
                 Button(
                     onClick = {
-                        // Todo: change this button behaviour
                         scope.launch {
                             snackBarHostState.showSnackbar(
                                 message = "Hey! you clicked the visual button",
@@ -143,11 +152,37 @@ fun HomeScreen(
     }
 }
 
+@Composable
+fun GameGrid(currentEventIndex: Int) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(3),
+        contentPadding = PaddingValues(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+    ) {
+        items(9) { index ->
+            GridCell(isActive = index == currentEventIndex)
+        }
+    }
+}
+
+@Composable
+fun GridCell(isActive: Boolean) {
+    Box(
+        modifier = Modifier
+            .padding(4.dp)
+            .size(80.dp)
+            .background(if (isActive) Color.Yellow else Color.LightGray)
+    )
+}
+
+
 @Preview
 @Composable
 fun HomeScreenPreview() {
     // Since I am injecting a VM into my homescreen that depends on Application context, the preview doesn't work.
     Surface(){
-        HomeScreen(FakeVM())
+        HomeScreen(GameVM.FakeVM())
     }
 }
