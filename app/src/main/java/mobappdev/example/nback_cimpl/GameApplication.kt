@@ -22,6 +22,8 @@ import mobappdev.example.nback_cimpl.data.UserPreferencesRepository
  *
  */
 
+//TODO: FLESTA KRAV FUNGERAR, BARA AUDIO KVAR!!!
+
 private const val APP_PREFERENCES_NAME = "game_preferences"
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
     name = APP_PREFERENCES_NAME
