@@ -133,14 +133,10 @@ fun HomeScreen(
                     currentEventIndex = gameState.eventValue,
                     onCellClick = { selectedIndex ->
                         vm.checkMatch(selectedIndex)
-                        val feedbackMessage = if (gameState.feedback.isNotEmpty()) {
-                            gameState.feedback
-                        } else {
-                            "No feedback from the input"
-                        }
+                        // Directly use gameState.feedback for the snackbar message
                         scope.launch {
                             snackBarHostState.showSnackbar(
-                                message = feedbackMessage,
+                                message = gameState.feedback,
                                 duration = SnackbarDuration.Short
                             )
                         }
