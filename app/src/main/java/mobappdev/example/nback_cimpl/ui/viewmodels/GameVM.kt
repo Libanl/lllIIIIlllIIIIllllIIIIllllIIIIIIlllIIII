@@ -149,18 +149,29 @@ class GameVM(
     }
 
     override fun checkMatch(selectedIndex: Int) {
-        if (currentEventIndex >= nBack) {
-            val expectedMatch = events[currentEventIndex - nBack]
-            if (selectedIndex == expectedMatch) {
+        if (_gameState.value.currentEventIndex >= nBack) {
+            // Get the current and n-back events
+            val currentEvent = events[currentEventIndex]
+            val previousEvent = events[currentEventIndex - nBack]
+
+            // Check if current event matches the n-back event
+            if (currentEvent == previousEvent) {
+                // Increment score and correct responses
                 _score.value += 1
                 correctResponses += 1
+
+                // Update the game state with feedback
                 _gameState.value = _gameState.value.copy(
                     feedback = "Correct!",
                     correctResponses = correctResponses
                 )
             } else {
+                // Update feedback for incorrect match
                 _gameState.value = _gameState.value.copy(feedback = "Incorrect!")
             }
+        } else {
+            // Not enough events have passed to make a comparison
+            _gameState.value = _gameState.value.copy(feedback = "Not enough data to compare.")
         }
     }
 
