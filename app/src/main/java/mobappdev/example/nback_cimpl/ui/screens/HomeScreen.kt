@@ -62,7 +62,6 @@ import androidx.compose.ui.platform.LocalContext
 
 
 @Composable
-//TODO: FIXA FEEDBACK SÅ DEN LIKNAR DET ANDRA SPELET, FIXA OCKSÅ ATT MAN I ADUIO GAME MODE SER CURRENT EVENT, CORRECT ANSWERS ETC
 fun HomeScreen(
     vm: GameViewModel
 ) {
@@ -85,7 +84,7 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            verticalArrangement = Arrangement.Center,
+            verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Display High Score and Current Score
@@ -112,6 +111,7 @@ fun HomeScreen(
                 vm.resetGame()
                 showGrid.value = false
                 showGameInProgress.value = false
+                matchButtonColor.value = Color.Gray // Reset button color
             }) {
                 Text(text = "Reset Game")
             }
@@ -121,15 +121,15 @@ fun HomeScreen(
                 modifier = Modifier.padding(top = 16.dp),
                 onClick = {
                     vm.startGame(context)
-                    showGrid.value = gameState.gameType == GameVM.Companion.GameType.Visual
-                    showGameInProgress.value = gameState.gameType == GameVM.Companion.GameType.Audio
+                    showGrid.value = gameState.gameType == GameVM.Companion.GameType.Visual || gameState.gameType == GameVM.Companion.GameType.AudioVisual
+                    showGameInProgress.value = gameState.gameType == GameVM.Companion.GameType.Audio || gameState.gameType == GameVM.Companion.GameType.AudioVisual
                 }
             ) {
                 Text(text = "Start N-Back Test")
             }
 
-            // Show the Game Grid if Visual mode is selected
-            if (showGrid.value && gameState.gameType == GameVM.Companion.GameType.Visual) {
+            // Show the Game Grid if Visual or AudioVisual mode is selected
+            if (showGrid.value && (gameState.gameType == GameVM.Companion.GameType.Visual || gameState.gameType == GameVM.Companion.GameType.AudioVisual)) {
                 GameGrid(
                     currentEventIndex = gameState.eventValue,
                     onCellClick = { selectedIndex ->
@@ -150,19 +150,16 @@ fun HomeScreen(
                 )
             }
 
-            // Show Game Progress Indicator if Audio Mode is selected
-            if (showGameInProgress.value && gameState.gameType == GameVM.Companion.GameType.Audio) {
-                Text(
-                    modifier = Modifier.padding(16.dp),
-                    text = "Audio Game In Progress... Listen carefully!",
-                    style = MaterialTheme.typography.bodyLarge
-                )
-
+            // Show Game Progress Indicator if Audio or AudioVisual Mode is selected
+            if (showGameInProgress.value && (gameState.gameType == GameVM.Companion.GameType.Audio || gameState.gameType == GameVM.Companion.GameType.AudioVisual)) {
                 // Audio-specific "Match" Button
                 Button(
+                    modifier = Modifier
+                        .padding(16.dp) // Add padding to move it higher
+                        .align(Alignment.CenterHorizontally), // Center it horizontally
                     onClick = {
                         vm.checkMatch(-1)  // Call checkMatch for audio mode; index is unused in audio
-                        matchButtonColor.value = if (gameState.feedback == "Correct!") Color.Green else Color.Red // Change color based on feedback
+                        matchButtonColor.value = if (gameState.feedback.contains("Correct")) Color.Green else Color.Red // Change color based on feedback
                         scope.launch {
                             snackBarHostState.showSnackbar(
                                 message = gameState.feedback,
@@ -173,17 +170,20 @@ fun HomeScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = matchButtonColor.value) // Set button color dynamically
                 ) {
                     Text(text = "Match")
-
-
                 }
+                Text(
+                    modifier = Modifier.padding(16.dp),
+                    text = "Audio Game In Progress... Listen carefully!",
+                    style = MaterialTheme.typography.bodyLarge
+                )
 
                 Text(
-                    text = "Current Event: ${gameState.currentEventIndex + 1} | Correct Responses: ${gameState.correctResponses}",
+                    text = "Current Event: ${gameState.currentEventIndex + 1} | Correct Audio Responses: ${gameState.correctAudioResponses}",
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
 
-            // Button Row for Game Types (Audio / Visual)
+            // Button Row for Game Types (Audio / Visual / AudioVisual)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -233,6 +233,22 @@ fun HomeScreen(
                             .height(48.dp)
                             .aspectRatio(3f / 2f)
                     )
+                }
+
+                // AudioVisual Button
+                Button(onClick = {
+                    vm.setGameType(GameVM.Companion.GameType.AudioVisual)
+                    showGrid.value = true // Show grid for visual mode as well
+                    showGameInProgress.value = true // Show progress indicator for audio
+                    vm.startGame(context) // Start the audio-visual game
+                    scope.launch {
+                        snackBarHostState.showSnackbar(
+                            message = "Starting Audio-Visual N-Back Game!",
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                }) {
+                    Text(text = "AV")
                 }
             }
         }

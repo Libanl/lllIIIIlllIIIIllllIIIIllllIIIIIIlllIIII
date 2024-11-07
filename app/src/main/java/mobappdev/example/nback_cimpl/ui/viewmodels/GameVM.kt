@@ -42,7 +42,8 @@ class GameVM(
 
     private val _score = MutableStateFlow(0)
     override val score: StateFlow<Int> = _score.asStateFlow()
-    private val audioLetters = listOf("A", "B", "C", "D", "E", "F", "G", "H", "I")
+    //En för varje "ruta" 9st.
+    private val audioLetters = listOf("L", "I", "B", "A", "N", "F", "G", "H", "I")
 
     private val _highscore = MutableStateFlow(0)
     override val highscore: StateFlow<Int> = _highscore.asStateFlow()
@@ -90,7 +91,7 @@ class GameVM(
         job = viewModelScope.launch {
             try {
                 // Delay to ensure TextToSpeech is initialized before starting the audio game
-                if (_gameState.value.gameType == GameType.Audio) {
+                if (_gameState.value.gameType == GameType.Audio || _gameState.value.gameType == GameType.AudioVisual) {
                     while (!ttsInitialized) {
                         delay(100) // Wait for TTS to initialize
                     }
@@ -102,13 +103,13 @@ class GameVM(
                         _gameState.value = _gameState.value.copy(feedback = "Audio game started!")
                         runAudioGame()
                     }
-                    GameType.AudioVisual -> {
-                        _gameState.value = _gameState.value.copy(feedback = "Audio-Visual game started!")
-                        runAudioVisualGame()
-                    }
                     GameType.Visual -> {
                         _gameState.value = _gameState.value.copy(feedback = "Visual game started!")
                         runVisualGame()
+                    }
+                    GameType.AudioVisual -> {
+                        _gameState.value = _gameState.value.copy(feedback = "Audio-Visual game started!")
+                        runAudioVisualGame()
                     }
                 }
             } catch (e: Exception) {
@@ -149,29 +150,40 @@ class GameVM(
     }
 
     override fun checkMatch(selectedIndex: Int) {
-        if (_gameState.value.currentEventIndex >= nBack) {
-            // Get the current and n-back events
-            val currentEvent = events[currentEventIndex]
-            val previousEvent = events[currentEventIndex - nBack]
+        val gameType = _gameState.value.gameType
 
-            // Check if current event matches the n-back event
-            if (currentEvent == previousEvent) {
-                // Increment score and correct responses
-                _score.value += 1
-                correctResponses += 1
-
-                // Update the game state with feedback
-                _gameState.value = _gameState.value.copy(
-                    feedback = "Correct!",
-                    correctResponses = correctResponses
-                )
-            } else {
-                // Update feedback for incorrect match
-                _gameState.value = _gameState.value.copy(feedback = "Incorrect!")
+        if (currentEventIndex >= nBack) {
+            // Visual Match Logic
+            if (gameType == GameType.Visual || gameType == GameType.AudioVisual) {
+                val expectedVisualMatch = events[currentEventIndex - nBack]
+                if (selectedIndex == expectedVisualMatch) {
+                    _score.value += 1
+                    correctResponses += 1
+                    _gameState.value = _gameState.value.copy(
+                        feedback = "Visual Correct!",
+                        correctResponses = correctResponses
+                    )
+                } else {
+                    _gameState.value = _gameState.value.copy(feedback = "Visual Incorrect!")
+                }
             }
-        } else {
-            // Not enough events have passed to make a comparison
-            _gameState.value = _gameState.value.copy(feedback = "Not enough data to compare.")
+
+            // Audio Match Logic (if it's AudioVisual or Audio mode)
+            if (gameType == GameType.Audio || gameType == GameType.AudioVisual) {
+                val expectedAudioMatch = events[currentEventIndex - nBack]
+                val currentAudioEvent = events[currentEventIndex]
+
+                if (currentAudioEvent == expectedAudioMatch) {
+                    _score.value += 1
+                    val newCorrectAudioResponses = _gameState.value.correctAudioResponses + 1
+                    _gameState.value = _gameState.value.copy(
+                        feedback = "Audio Correct!",
+                        correctAudioResponses = newCorrectAudioResponses
+                    )
+                } else {
+                    _gameState.value = _gameState.value.copy(feedback = "Audio Incorrect!")
+                }
+            }
         }
     }
 
@@ -217,8 +229,38 @@ class GameVM(
         )
     }
 
-    private fun runAudioVisualGame() {
-        // Implement combined audio-visual game logic as needed
+    private suspend fun runAudioVisualGame() {
+        // Ensure TTS is initialized before starting
+        while (!ttsInitialized) {
+            delay(100)
+        }
+
+        for (i in events.indices) {
+            val position = events[i] % 9  // Position for visual grid (3x3 grid)
+            val letter = audioLetters[position]  // Letter for auditory stimulus
+
+            // Update both visual and auditory event values in the game state
+            _gameState.value = _gameState.value.copy(eventValue = position, audioValue = position, feedback = "")
+
+            // Speak the auditory letter
+            speakLetter(letter)
+
+            // Delay to allow the user to respond to both stimuli
+            delay(eventInterval)
+
+            currentEventIndex++
+            _gameState.value = _gameState.value.copy(currentEventIndex = currentEventIndex)
+
+            if (job?.isCancelled == true) break
+        }
+
+        // After all events are completed
+        _gameState.value = _gameState.value.copy(
+            eventValue = -1,
+            audioValue = -1,
+            feedback = "Game Over! Final Score: Visual: ${_score.value}, Audio: ${_gameState.value.correctAudioResponses}",
+            currentEventIndex = currentEventIndex
+        )
     }
 
     private fun updateHighScoreIfNeeded() {
@@ -258,9 +300,11 @@ class GameVM(
         data class GameState(
             val gameType: GameType,
             val eventValue: Int = -1,
+            val audioValue: Int = -1,
             val feedback: String = "",
             val currentEventIndex: Int = 0,
-            val correctResponses: Int = 0
+            val correctResponses: Int = 0,
+            val correctAudioResponses: Int = 0
         )
     }
 
