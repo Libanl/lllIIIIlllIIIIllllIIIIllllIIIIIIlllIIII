@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -73,28 +74,83 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 
+
 @Composable
 fun HomeScreen(
-    vm: GameViewModel,
+    vm: GameVM,
     onSettingsClick: () -> Unit,
-    onScoreboardClick: () -> Unit // Add a callback for navigating to the scoreboard screen
+    onScoreboardClick: () -> Unit
 ) {
+    // Collect state from ViewModel
     val highscore by vm.highscore.collectAsState()
     val score by vm.score.collectAsState()
     val gameState by vm.gameState.collectAsState()
-    val nBack by vm.nBack.collectAsState() // Correctly collect the value from StateFlow
-    val eventInterval by vm.eventInterval.collectAsState() // Correctly collect the value from StateFlow
-    val totalNrOfEvents by vm.totalNrOfEvents.collectAsState() // Correctly collect the value from StateFlow
-    val gridSize by vm.gridSize.collectAsState() // Observe grid size from ViewModel
-    val snackBarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+    val nBack by vm.nBack.collectAsState()
+    val eventInterval by vm.eventInterval.collectAsState()
+    val totalNrOfEvents by vm.totalNrOfEvents.collectAsState()
+    val gridSize by vm.gridSize.collectAsState()
+    val gameFinished by vm.gameFinished.collectAsState()
+
+    // Mutable states to handle UI events
+    val showDialog = remember { mutableStateOf(false) }
+    val playerName = remember { mutableStateOf("") }
     val showGrid = remember { mutableStateOf(false) }
     val showGameInProgress = remember { mutableStateOf(false) }
+
+    // Snackbar and context
+    val snackBarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    // Color state for the match button feedback
-    val matchButtonColor = remember { mutableStateOf(Color.Gray) }
+    // Show the save dialog after the game is finished
+    if (gameFinished) {
+        showDialog.value = true
+    }
 
+    // Dialog for saving score after the game ends
+    if (showDialog.value) {
+        AlertDialog(
+            onDismissRequest = {
+                showDialog.value = false // Dismiss the dialog without saving
+            },
+            title = {
+                Text(text = "Enter Player Name")
+            },
+            text = {
+                Column {
+                    Text("Please enter your name to save your score:")
+                    TextField(
+                        value = playerName.value,
+                        onValueChange = { playerName.value = it },
+                        label = { Text("Name") }
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (playerName.value.isNotBlank()) {
+                            vm.addScore(playerName.value) // Add score after user enters name
+                            showDialog.value = false
+                        }
+                    }
+                ) {
+                    Text("Save Score")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = {
+                        showDialog.value = false // Dismiss the dialog without saving
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Main UI Scaffold
     Scaffold(
         snackbarHost = { SnackbarHost(snackBarHostState) }
     ) { padding ->
@@ -105,55 +161,54 @@ fun HomeScreen(
             verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Display High Score and Current Score
+            // High Score and Current Score Display
             Text(
                 modifier = Modifier.padding(16.dp),
                 text = "High Score: $highscore",
-                style = MaterialTheme.typography.headlineSmall
+                style = MaterialTheme.typography.headlineMedium
             )
-
             Text(
                 modifier = Modifier.padding(8.dp),
                 text = "Current Score: $score",
-                style = MaterialTheme.typography.headlineSmall
+                style = MaterialTheme.typography.bodyLarge
             )
 
-            // Display Game Settings using collected StateFlow values
+            // Display game settings information such as N, Event Interval, and Total Events
             Text(
                 text = "Settings: ${gameState.gameType} | N: $nBack | Interval: ${eventInterval / 1000} seconds | Events in Round: $totalNrOfEvents",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(8.dp)
             )
 
-            // Hide Settings Button when game is in progress for ALL game types
+            // Show Settings and Scoreboard button only if game is not in progress
             if (!showGameInProgress.value && !showGrid.value) {
+                // Button for viewing the scoreboard
                 Button(
-                    modifier = Modifier.padding(bottom = 8.dp),
-                    onClick = onSettingsClick // Navigate to the settings screen
+                    modifier = Modifier.padding(bottom = 16.dp),
+                    onClick = onScoreboardClick
+                ) {
+                    Text(text = "View Scoreboard")
+                }
+
+                // Button to navigate to settings
+                Button(
+                    modifier = Modifier.padding(bottom = 16.dp),
+                    onClick = onSettingsClick // Navigate to Settings Screen
                 ) {
                     Text(text = "Settings")
                 }
-
-                // Scoreboard Button
-                Button(
-                    modifier = Modifier.padding(bottom = 16.dp),
-                    onClick = onScoreboardClick // Navigate to the scoreboard screen
-                ) {
-                    Text(text = "Scoreboard")
-                }
             }
 
-            // Reset Game Button
+            // Button to reset the game (always shown)
             Button(onClick = {
                 vm.resetGame()
                 showGrid.value = false
                 showGameInProgress.value = false
-                matchButtonColor.value = Color.Gray // Reset button color
             }) {
                 Text(text = "Reset Game")
             }
 
-            // Button to Start the Game
+            // Button to Start the Game (always shown)
             Button(
                 modifier = Modifier.padding(top = 16.dp),
                 onClick = {
@@ -169,10 +224,9 @@ fun HomeScreen(
             if (showGrid.value && (gameState.gameType == GameVM.Companion.GameType.Visual || gameState.gameType == GameVM.Companion.GameType.AudioVisual)) {
                 GameGrid(
                     currentEventIndex = gameState.eventValue,
-                    gridSize = gridSize,  // Use the dynamic grid size from ViewModel
+                    gridSize = gridSize,
                     onCellClick = { selectedIndex ->
                         vm.checkMatch(selectedIndex)
-                        // Directly use gameState.feedback for the snackbar message
                         scope.launch {
                             snackBarHostState.showSnackbar(
                                 message = gameState.feedback,
@@ -181,7 +235,6 @@ fun HomeScreen(
                         }
                     }
                 )
-
                 Text(
                     text = "Current Event: ${gameState.currentEventIndex + 1} | Correct Responses: ${gameState.correctResponses}",
                     style = MaterialTheme.typography.bodyMedium,
@@ -197,14 +250,11 @@ fun HomeScreen(
                         .fillMaxWidth()
                         .padding(vertical = 16.dp)
                 ) {
-                    // Audio-specific "Match" Button (moved to be more visible)
+                    // Audio-specific "Match" Button
                     Button(
-                        modifier = Modifier
-                            .padding(8.dp)
-                            .align(Alignment.CenterHorizontally), // Center it horizontally
+                        modifier = Modifier.padding(8.dp),
                         onClick = {
-                            vm.checkMatch(-1)  // Call checkMatch for audio mode; index is unused in audio
-                            matchButtonColor.value = if (gameState.feedback.contains("Correct")) Color.Green else Color.Red // Change color based on feedback
+                            vm.checkMatch(-1)
                             scope.launch {
                                 snackBarHostState.showSnackbar(
                                     message = gameState.feedback,
@@ -212,7 +262,7 @@ fun HomeScreen(
                                 )
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = matchButtonColor.value) // Set button color dynamically
+                        colors = ButtonDefaults.buttonColors(containerColor = if (gameState.feedback.contains("Correct")) Color.Green else Color.Red)
                     ) {
                         Text(text = "Match")
                     }
@@ -232,71 +282,73 @@ fun HomeScreen(
             }
 
             // Button Row for Game Types (Audio / Visual / AudioVisual)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Audio Button
-                Button(onClick = {
-                    vm.setGameType(GameVM.Companion.GameType.Audio)
-                    showGrid.value = false // Hide grid for audio-only mode
-                    showGameInProgress.value = true // Show progress indicator for audio
-                    vm.startGame(context) // Start the audio game
-                    scope.launch {
-                        snackBarHostState.showSnackbar(
-                            message = "Starting Audio N-Back Game!",
-                            duration = SnackbarDuration.Short
+            if (!showGameInProgress.value && !showGrid.value) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Audio Button
+                    Button(onClick = {
+                        vm.setGameType(GameVM.Companion.GameType.Audio)
+                        showGrid.value = false
+                        showGameInProgress.value = true
+                        vm.startGame(context)
+                        scope.launch {
+                            snackBarHostState.showSnackbar(
+                                message = "Starting Audio N-Back Game!",
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                    }) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.sound_on),
+                            contentDescription = "Audio",
+                            modifier = Modifier
+                                .height(48.dp)
+                                .aspectRatio(3f / 2f)
                         )
                     }
-                }) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.sound_on),
-                        contentDescription = "Audio",
-                        modifier = Modifier
-                            .height(48.dp)
-                            .aspectRatio(3f / 2f)
-                    )
-                }
 
-                // Visual Button
-                Button(onClick = {
-                    vm.setGameType(GameVM.Companion.GameType.Visual)
-                    showGrid.value = true // Show grid for visual mode
-                    showGameInProgress.value = false
-                    vm.startGame(context)
-                    scope.launch {
-                        snackBarHostState.showSnackbar(
-                            message = "Starting Visual N-Back Game!",
-                            duration = SnackbarDuration.Short
+                    // Visual Button
+                    Button(onClick = {
+                        vm.setGameType(GameVM.Companion.GameType.Visual)
+                        showGrid.value = true
+                        showGameInProgress.value = false
+                        vm.startGame(context)
+                        scope.launch {
+                            snackBarHostState.showSnackbar(
+                                message = "Starting Visual N-Back Game!",
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                    }) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.visual),
+                            contentDescription = "Visual",
+                            modifier = Modifier
+                                .height(48.dp)
+                                .aspectRatio(3f / 2f)
                         )
                     }
-                }) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.visual),
-                        contentDescription = "Visual",
-                        modifier = Modifier
-                            .height(48.dp)
-                            .aspectRatio(3f / 2f)
-                    )
-                }
 
-                // AudioVisual Button
-                Button(onClick = {
-                    vm.setGameType(GameVM.Companion.GameType.AudioVisual)
-                    showGrid.value = true // Show grid for visual mode as well
-                    showGameInProgress.value = true // Show progress indicator for audio
-                    vm.startGame(context) // Start the audio-visual game
-                    scope.launch {
-                        snackBarHostState.showSnackbar(
-                            message = "Starting Audio-Visual N-Back Game!",
-                            duration = SnackbarDuration.Short
-                        )
+                    // AudioVisual Button
+                    Button(onClick = {
+                        vm.setGameType(GameVM.Companion.GameType.AudioVisual)
+                        showGrid.value = true
+                        showGameInProgress.value = true
+                        vm.startGame(context)
+                        scope.launch {
+                            snackBarHostState.showSnackbar(
+                                message = "Starting Audio-Visual N-Back Game!",
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                    }) {
+                        Text(text = "AV")
                     }
-                }) {
-                    Text(text = "AV")
                 }
             }
         }

@@ -57,6 +57,9 @@ class GameVM(
     private val _nBack = MutableStateFlow(2)
     override val nBack: StateFlow<Int> = _nBack.asStateFlow()
 
+    private val _gameFinished = MutableStateFlow(false)
+    val gameFinished: StateFlow<Boolean> = _gameFinished.asStateFlow()
+
     private val _eventInterval = MutableStateFlow(2000L)
     override val eventInterval: StateFlow<Long> = _eventInterval.asStateFlow()
 
@@ -79,6 +82,10 @@ class GameVM(
 
     override fun setGameType(gameType: GameType) {
         _gameState.value = _gameState.value.copy(gameType = gameType)
+    }
+
+    private fun finishGame() {
+        _gameFinished.value = true
     }
 
     override fun onInit(status: Int) {
@@ -138,7 +145,7 @@ class GameVM(
                 _gameState.value = _gameState.value.copy(feedback = "An error occurred, please try again.")
             } finally {
                 updateHighScoreIfNeeded()
-                saveScore()
+                finishGame()
             }
         }
     }
@@ -297,6 +304,8 @@ class GameVM(
         viewModelScope.launch {
             val newScore = Score(playerName, _score.value, System.currentTimeMillis())
             userPreferencesRepository.saveScore(newScore)
+            // Reset game finished state
+            _gameFinished.value = false
         }
     }
 
