@@ -16,6 +16,7 @@ import mobappdev.example.nback_cimpl.data.UserPreferencesRepository
 
 import android.content.Context
 import android.speech.tts.TextToSpeech
+import mobappdev.example.nback_cimpl.data.Score
 import java.util.Locale
 
 
@@ -27,12 +28,15 @@ interface GameViewModel {
     val eventInterval: StateFlow<Long>
     val totalNrOfEvents: StateFlow<Int>
     val gridSize: StateFlow<Int>
+    val scores: StateFlow<List<Score>>
     fun setGameType(gameType: GameVM.Companion.GameType)
     fun startGame(context: Context)
     fun checkMatch(selectedIndex: Int)
     fun resetGame()
     fun matchDetected()
 }
+
+
 
 class GameVM(
     private val userPreferencesRepository: UserPreferencesRepository
@@ -44,7 +48,7 @@ class GameVM(
     private val _score = MutableStateFlow(0)
     override val score: StateFlow<Int> = _score.asStateFlow()
 
-    private val audioLetters = listOf("L", "I", "B", "A", "N", "F", "G", "H", "I")
+    private val audioLetters = listOf("L", "I", "B", "A", "N", "F", "G", "H", "E", "C", "D", "Q", "R", "S", "T", "U", "V", "K")
 
     private val _highscore = MutableStateFlow(0)
     override val highscore: StateFlow<Int> = _highscore.asStateFlow()
@@ -61,6 +65,9 @@ class GameVM(
 
     private val _gridSize = MutableStateFlow(3)
     override val gridSize: StateFlow<Int> = _gridSize.asStateFlow()
+
+    private val _scores = MutableStateFlow<List<Score>>(emptyList())
+    override val scores: StateFlow<List<Score>> = _scores.asStateFlow()
 
     private var job: Job? = null
     private val nBackHelper = NBackHelper()
@@ -131,6 +138,7 @@ class GameVM(
                 _gameState.value = _gameState.value.copy(feedback = "An error occurred, please try again.")
             } finally {
                 updateHighScoreIfNeeded()
+                saveScore()
             }
         }
     }
@@ -279,6 +287,19 @@ class GameVM(
         }
     }
 
+    private fun saveScore() {
+        // Saving the score after the game ends
+        val playerName = "DefaultPlayer" // Replace this with a way to get player's name from UI.
+        addScore(playerName)
+    }
+
+    fun addScore(playerName: String) {
+        viewModelScope.launch {
+            val newScore = Score(playerName, _score.value, System.currentTimeMillis())
+            userPreferencesRepository.saveScore(newScore)
+        }
+    }
+
     init {
         viewModelScope.launch {
             userPreferencesRepository.highscore.collect { highScore ->
@@ -307,6 +328,12 @@ class GameVM(
         viewModelScope.launch {
             userPreferencesRepository.gridSize.collect { size ->
                 _gridSize.value = size
+            }
+        }
+
+        viewModelScope.launch {
+            userPreferencesRepository.scores.collect { savedScores ->
+                _scores.value = savedScores
             }
         }
     }
@@ -359,6 +386,8 @@ class GameVM(
         override val totalNrOfEvents: StateFlow<Int>
             get() = TODO("Not yet implemented")
         override val gridSize: StateFlow<Int>
+            get() = TODO("Not yet implemented")
+        override val scores: StateFlow<List<Score>>
             get() = TODO("Not yet implemented")
 
         override fun setGameType(gameType: GameVM.Companion.GameType) {

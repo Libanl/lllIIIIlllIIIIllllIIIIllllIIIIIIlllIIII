@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import mobappdev.example.nback_cimpl.data.UserPreferencesRepository
 import mobappdev.example.nback_cimpl.ui.screens.HomeScreen
+import mobappdev.example.nback_cimpl.ui.screens.ScoreboardScreen
 import mobappdev.example.nback_cimpl.ui.screens.SettingsScreen
 import mobappdev.example.nback_cimpl.ui.theme.NBack_CImplTheme
 
@@ -39,26 +40,30 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // Get the GameApplication instance to access userPreferencesRepository
-                    val application = applicationContext as GameApplication
-                    val userPreferencesRepository = application.userPreferencesRepository
+                    // Create ViewModel and UserPreferencesRepository
+                    val gameViewModel: GameVM = viewModel(factory = GameVM.Factory)
+                    val userPreferencesRepository = UserPreferencesRepository(dataStore =  applicationContext.dataStore)
 
-                    // Create the ViewModel
-                    val gameViewModel: GameVM = viewModel(
-                        factory = GameVM.Factory
-                    )
-
-                    // Use mutable state for navigation between screens
+                    // Use state to manage which screen is currently active
                     val currentScreen = remember { mutableStateOf("home") }
 
                     when (currentScreen.value) {
                         "home" -> HomeScreen(
                             vm = gameViewModel,
-                            onSettingsClick = { currentScreen.value = "settings" }
+                            onSettingsClick = { currentScreen.value = "settings" }, // Navigate to Settings Screen
+                            onScoreboardClick = { currentScreen.value = "scoreboard" } // Navigate to Scoreboard Screen
                         )
                         "settings" -> SettingsScreen(
                             userPreferencesRepository = userPreferencesRepository,
-                            onBack = { currentScreen.value = "home" }
+                            onBack = { currentScreen.value = "home" } // Navigate back to Home Screen
+                        )
+                        "scoreboard" -> ScoreboardScreen(
+                            vm = gameViewModel,
+                            onBack = { currentScreen.value = "home" } // Navigate back to Home Screen
+                        ) // Navigate to Settings Screen
+                        "settings" -> SettingsScreen(
+                            userPreferencesRepository = userPreferencesRepository,
+                            onBack = { currentScreen.value = "home" } // Navigate back to Home Screen
                         )
                     }
                 }

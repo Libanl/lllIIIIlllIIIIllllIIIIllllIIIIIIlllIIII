@@ -72,7 +72,8 @@ import mobappdev.example.nback_cimpl.data.UserPreferencesRepository
 @Composable
 fun HomeScreen(
     vm: GameViewModel,
-    onSettingsClick: () -> Unit // Add a callback for navigating to the settings screen
+    onSettingsClick: () -> Unit,
+    onScoreboardClick: () -> Unit // Add a callback for navigating to the scoreboard screen
 ) {
     val highscore by vm.highscore.collectAsState()
     val score by vm.score.collectAsState()
@@ -102,30 +103,39 @@ fun HomeScreen(
         ) {
             // Display High Score and Current Score
             Text(
-                modifier = Modifier.padding(32.dp),
+                modifier = Modifier.padding(16.dp),
                 text = "High Score: $highscore",
-                style = MaterialTheme.typography.headlineLarge
+                style = MaterialTheme.typography.headlineSmall
             )
 
             Text(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(8.dp),
                 text = "Current Score: $score",
-                style = MaterialTheme.typography.headlineMedium
+                style = MaterialTheme.typography.headlineSmall
             )
 
             // Display Game Settings using collected StateFlow values
             Text(
                 text = "Settings: ${gameState.gameType} | N: $nBack | Interval: ${eventInterval / 1000} seconds | Events in Round: $totalNrOfEvents",
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(8.dp)
             )
 
             // Hide Settings Button when game is in progress for ALL game types
             if (!showGameInProgress.value && !showGrid.value) {
                 Button(
-                    modifier = Modifier.padding(bottom = 16.dp),
+                    modifier = Modifier.padding(bottom = 8.dp),
                     onClick = onSettingsClick // Navigate to the settings screen
                 ) {
                     Text(text = "Settings")
+                }
+
+                // Scoreboard Button
+                Button(
+                    modifier = Modifier.padding(bottom = 16.dp),
+                    onClick = onScoreboardClick // Navigate to the scoreboard screen
+                ) {
+                    Text(text = "Scoreboard")
                 }
             }
 
@@ -170,7 +180,8 @@ fun HomeScreen(
 
                 Text(
                     text = "Current Event: ${gameState.currentEventIndex + 1} | Correct Responses: ${gameState.correctResponses}",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(8.dp)
                 )
             }
 
@@ -178,7 +189,9 @@ fun HomeScreen(
             if (showGameInProgress.value && (gameState.gameType == GameVM.Companion.GameType.Audio || gameState.gameType == GameVM.Companion.GameType.AudioVisual)) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp)
                 ) {
                     // Audio-specific "Match" Button (moved to be more visible)
                     Button(
@@ -208,7 +221,8 @@ fun HomeScreen(
 
                     Text(
                         text = "Current Event: ${gameState.currentEventIndex + 1} | Correct Audio Responses: ${gameState.correctAudioResponses}",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(8.dp)
                     )
                 }
             }
@@ -280,6 +294,77 @@ fun HomeScreen(
                 }) {
                     Text(text = "AV")
                 }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun ScoreboardScreen(
+    vm: GameViewModel,
+    onBack: () -> Unit
+) {
+    val scores by vm.scores.collectAsState()
+    val sortedScores = remember { mutableStateOf(scores) }
+    val selectedSortOption = remember { mutableStateOf("score") }
+
+    // Sort Scores based on selected sort option
+    sortedScores.value = when (selectedSortOption.value) {
+        "name" -> scores.sortedBy { it.playerName }
+        "score" -> scores.sortedByDescending { it.score }
+        "date" -> scores.sortedByDescending { it.date }
+        else -> scores
+    }
+
+    Scaffold(
+        topBar = {
+            Button(onClick = onBack) {
+                Text("Back")
+            }
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Scoreboard",
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            // Sorting Options
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                Button(onClick = { selectedSortOption.value = "name" }) {
+                    Text(text = "Sort by Name")
+                }
+                Button(onClick = { selectedSortOption.value = "score" }) {
+                    Text(text = "Sort by Score")
+                }
+                Button(onClick = { selectedSortOption.value = "date" }) {
+                    Text(text = "Sort by Date")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Display Scores
+            sortedScores.value.forEach { score ->
+                Text(
+                    text = "Player: ${score.playerName} | Score: ${score.score} | Date: ${score.date}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(8.dp)
+                )
             }
         }
     }
@@ -413,17 +498,4 @@ fun GridCell(isActive: Boolean, onClick: () -> Unit, gridSize: Int) {
             .background(if (isActive) Color.Yellow else Color.LightGray)
             .clickable { onClick() } // Handle clicks
     )
-}
-
-
-@Preview
-@Composable
-fun HomeScreenPreview() {
-    // Since I am injecting a VM into my homescreen that depends on Application context, the preview doesn't work.
-    Surface(){
-        HomeScreen(
-            GameVM.FakeVM(),
-            onSettingsClick = TODO()
-        )
-    }
 }

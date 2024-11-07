@@ -6,11 +6,13 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.IOException
-
 /**
  * This repository provides a way to interact with the DataStore api,
  * with this API you can save key:value pairs
@@ -25,6 +27,11 @@ import java.io.IOException
  * Author: Yeetivity
  *
  */
+data class Score(
+    val playerName: String,
+    val score: Int,
+    val date: Long
+)
 
 class UserPreferencesRepository(
     private val dataStore: DataStore<Preferences>
@@ -36,7 +43,45 @@ class UserPreferencesRepository(
         val N_BACK = intPreferencesKey("n_back")
         val GRID_SIZE = intPreferencesKey("grid_size")
         val NUM_SPOKEN_LETTERS = intPreferencesKey("num_spoken_letters")
+        private val SCORES = stringPreferencesKey("scores")
         const val TAG = "UserPreferencesRepo"
+    }
+
+    val scores: Flow<List<Score>> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                Log.e(TAG, "Error reading preferences", exception)
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            val json = preferences[SCORES] ?: "[]"
+            val scoreList = mutableListOf<Score>()
+            val jsonArray = JSONArray(json)
+            for (i in 0 until jsonArray.length()) {
+                val jsonObject = jsonArray.getJSONObject(i)
+                val playerName = jsonObject.getString("playerName")
+                val score = jsonObject.getInt("score")
+                val date = jsonObject.getLong("date")
+                scoreList.add(Score(playerName, score, date))
+            }
+            scoreList
+        }
+
+    suspend fun saveScore(newScore: Score) {
+        dataStore.edit { preferences ->
+            val currentScoresJson = preferences[SCORES] ?: "[]"
+            val jsonArray = JSONArray(currentScoresJson)
+            val newScoreObject = JSONObject().apply {
+                put("playerName", newScore.playerName)
+                put("score", newScore.score)
+                put("date", newScore.date)
+            }
+            jsonArray.put(newScoreObject)
+            preferences[SCORES] = jsonArray.toString()
+        }
     }
 
     val highscore: Flow<Int> = dataStore.data

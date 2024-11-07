@@ -25,18 +25,19 @@ import mobappdev.example.nback_cimpl.data.UserPreferencesRepository
 //TODO: FLESTA KRAV FUNGERAR, BARA AUDIO KVAR!!!
 
 private const val APP_PREFERENCES_NAME = "game_preferences"
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
     name = APP_PREFERENCES_NAME
 )
 
 /*
 * Custom app entry point for manual dependency injection
- */
-class GameApplication: Application() {
+*/
+class GameApplication : Application() {
     lateinit var userPreferencesRepository: UserPreferencesRepository
 
     override fun onCreate() {
         super.onCreate()
-        userPreferencesRepository = UserPreferencesRepository(dataStore)
+        // Correct access to dataStore via applicationContext
+        userPreferencesRepository = UserPreferencesRepository(applicationContext.dataStore)
     }
 }
