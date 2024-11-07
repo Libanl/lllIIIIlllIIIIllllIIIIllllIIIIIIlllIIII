@@ -62,6 +62,7 @@ import androidx.compose.ui.platform.LocalContext
 
 
 @Composable
+//TODO: FIXA FEEDBACK SÅ DEN LIKNAR DET ANDRA SPELET, FIXA OCKSÅ ATT MAN I ADUIO GAME MODE SER CURRENT EVENT, CORRECT ANSWERS ETC
 fun HomeScreen(
     vm: GameViewModel
 ) {
@@ -172,7 +173,14 @@ fun HomeScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = matchButtonColor.value) // Set button color dynamically
                 ) {
                     Text(text = "Match")
+
+
                 }
+
+                Text(
+                    text = "Current Event: ${gameState.currentEventIndex + 1} | Correct Responses: ${gameState.correctResponses}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
 
             // Button Row for Game Types (Audio / Visual)
