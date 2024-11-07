@@ -62,6 +62,7 @@ import mobappdev.example.nback_cimpl.R
  */
 
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import mobappdev.example.nback_cimpl.data.UserPreferencesRepository
 
 
@@ -118,12 +119,14 @@ fun HomeScreen(
                 style = MaterialTheme.typography.bodyMedium
             )
 
-            // Settings Button
-            Button(
-                modifier = Modifier.padding(bottom = 16.dp),
-                onClick = onSettingsClick // Navigate to the settings screen
-            ) {
-                Text(text = "Settings")
+            // Hide Settings Button when game is in progress for ALL game types
+            if (!showGameInProgress.value && !showGrid.value) {
+                Button(
+                    modifier = Modifier.padding(bottom = 16.dp),
+                    onClick = onSettingsClick // Navigate to the settings screen
+                ) {
+                    Text(text = "Settings")
+                }
             }
 
             // Reset Game Button
@@ -173,35 +176,41 @@ fun HomeScreen(
 
             // Show Game Progress Indicator if Audio or AudioVisual Mode is selected
             if (showGameInProgress.value && (gameState.gameType == GameVM.Companion.GameType.Audio || gameState.gameType == GameVM.Companion.GameType.AudioVisual)) {
-                // Audio-specific "Match" Button
-                Button(
-                    modifier = Modifier
-                        .padding(16.dp) // Add padding to move it higher
-                        .align(Alignment.CenterHorizontally), // Center it horizontally
-                    onClick = {
-                        vm.checkMatch(-1)  // Call checkMatch for audio mode; index is unused in audio
-                        matchButtonColor.value = if (gameState.feedback.contains("Correct")) Color.Green else Color.Red // Change color based on feedback
-                        scope.launch {
-                            snackBarHostState.showSnackbar(
-                                message = gameState.feedback,
-                                duration = SnackbarDuration.Short
-                            )
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = matchButtonColor.value) // Set button color dynamically
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
                 ) {
-                    Text(text = "Match")
-                }
-                Text(
-                    modifier = Modifier.padding(16.dp),
-                    text = "Audio Game In Progress... Listen carefully!",
-                    style = MaterialTheme.typography.bodyLarge
-                )
+                    // Audio-specific "Match" Button (moved to be more visible)
+                    Button(
+                        modifier = Modifier
+                            .padding(8.dp)
+                            .align(Alignment.CenterHorizontally), // Center it horizontally
+                        onClick = {
+                            vm.checkMatch(-1)  // Call checkMatch for audio mode; index is unused in audio
+                            matchButtonColor.value = if (gameState.feedback.contains("Correct")) Color.Green else Color.Red // Change color based on feedback
+                            scope.launch {
+                                snackBarHostState.showSnackbar(
+                                    message = gameState.feedback,
+                                    duration = SnackbarDuration.Short
+                                )
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = matchButtonColor.value) // Set button color dynamically
+                    ) {
+                        Text(text = "Match")
+                    }
 
-                Text(
-                    text = "Current Event: ${gameState.currentEventIndex + 1} | Correct Audio Responses: ${gameState.correctAudioResponses}",
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                    Text(
+                        modifier = Modifier.padding(8.dp),
+                        text = "Audio Game In Progress... Listen carefully!",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+
+                    Text(
+                        text = "Current Event: ${gameState.currentEventIndex + 1} | Correct Audio Responses: ${gameState.correctAudioResponses}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             }
 
             // Button Row for Game Types (Audio / Visual / AudioVisual)
@@ -275,6 +284,7 @@ fun HomeScreen(
         }
     }
 }
+
 
 
 
@@ -367,27 +377,39 @@ fun SettingsScreen(
 
 @Composable
 fun GameGrid(currentEventIndex: Int, gridSize: Int, onCellClick: (Int) -> Unit) {
+    val cellCount = gridSize * gridSize
+
     LazyVerticalGrid(
         columns = GridCells.Fixed(gridSize),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(8.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(1f)
+            .height(300.dp)  // Adjust the height to make sure it fits well for all grid sizes
     ) {
-        items(gridSize * gridSize) { index ->
+        items(cellCount) { index ->
             GridCell(
                 isActive = index == currentEventIndex,
-                onClick = { onCellClick(index) } // Pass cell index on click
+                onClick = { onCellClick(index) },
+                gridSize = gridSize
             )
         }
     }
 }
+
 @Composable
-fun GridCell(isActive: Boolean, onClick: () -> Unit) {
+fun GridCell(isActive: Boolean, onClick: () -> Unit, gridSize: Int) {
+    // Calculate the cell size based on the gridSize
+    val cellSize = when (gridSize) {
+        3 -> 100.dp
+        4 -> 80.dp
+        5 -> 50.dp
+        else -> 100.dp
+    }
+
     Box(
         modifier = Modifier
             .padding(4.dp)
-            .size(80.dp)
+            .size(cellSize)
             .background(if (isActive) Color.Yellow else Color.LightGray)
             .clickable { onClick() } // Handle clicks
     )
