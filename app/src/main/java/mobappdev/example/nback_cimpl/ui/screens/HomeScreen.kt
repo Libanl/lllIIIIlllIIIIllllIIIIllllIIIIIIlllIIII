@@ -400,8 +400,8 @@ fun GameGrid(currentEventIndex: Int, gridSize: Int, onCellClick: (Int) -> Unit) 
 fun GridCell(isActive: Boolean, onClick: () -> Unit, gridSize: Int) {
     // Calculate the cell size based on the gridSize
     val cellSize = when (gridSize) {
-        3 -> 100.dp
-        4 -> 80.dp
+        3 -> 80.dp
+        4 -> 60.dp
         5 -> 50.dp
         else -> 100.dp
     }
