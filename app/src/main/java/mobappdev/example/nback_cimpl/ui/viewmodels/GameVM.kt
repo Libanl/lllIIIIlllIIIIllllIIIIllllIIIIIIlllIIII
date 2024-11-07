@@ -39,7 +39,7 @@ interface GameViewModel {
 
 
 class GameVM(
-    private val userPreferencesRepository: UserPreferencesRepository
+    val userPreferencesRepository: UserPreferencesRepository
 ) : GameViewModel, ViewModel(), TextToSpeech.OnInitListener {
 
     private val _gameState = MutableStateFlow(GameState(GameType.Visual)) // Start with a default game type

@@ -1,5 +1,6 @@
 package mobappdev.example.nback_cimpl.ui.screens
 
+import GameVM
 import GameViewModel
 import android.annotation.SuppressLint
 import android.util.Log
@@ -30,12 +31,14 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -62,11 +65,12 @@ import mobappdev.example.nback_cimpl.R
  */
 
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.Dp
 import mobappdev.example.nback_cimpl.data.UserPreferencesRepository
-
-
-
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 
 @Composable
@@ -300,78 +304,6 @@ fun HomeScreen(
 }
 
 
-@Composable
-fun ScoreboardScreen(
-    vm: GameViewModel,
-    onBack: () -> Unit
-) {
-    val scores by vm.scores.collectAsState()
-    val sortedScores = remember { mutableStateOf(scores) }
-    val selectedSortOption = remember { mutableStateOf("score") }
-
-    // Sort Scores based on selected sort option
-    sortedScores.value = when (selectedSortOption.value) {
-        "name" -> scores.sortedBy { it.playerName }
-        "score" -> scores.sortedByDescending { it.score }
-        "date" -> scores.sortedByDescending { it.date }
-        else -> scores
-    }
-
-    Scaffold(
-        topBar = {
-            Button(onClick = onBack) {
-                Text("Back")
-            }
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Top,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Scoreboard",
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            // Sorting Options
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                Button(onClick = { selectedSortOption.value = "name" }) {
-                    Text(text = "Sort by Name")
-                }
-                Button(onClick = { selectedSortOption.value = "score" }) {
-                    Text(text = "Sort by Score")
-                }
-                Button(onClick = { selectedSortOption.value = "date" }) {
-                    Text(text = "Sort by Date")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Display Scores
-            sortedScores.value.forEach { score ->
-                Text(
-                    text = "Player: ${score.playerName} | Score: ${score.score} | Date: ${score.date}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(8.dp)
-                )
-            }
-        }
-    }
-}
-
-
-
 
 @Composable
 fun SettingsScreen(
@@ -499,3 +431,70 @@ fun GridCell(isActive: Boolean, onClick: () -> Unit, gridSize: Int) {
             .clickable { onClick() } // Handle clicks
     )
 }
+
+
+@Composable
+fun ScoreboardScreen(
+    gameViewModel: GameVM,
+    onBackClick: () -> Unit
+) {
+    val scores by gameViewModel.scores.collectAsState()
+    val scope = rememberCoroutineScope()
+    var playerName by remember { mutableStateOf(TextFieldValue("")) } // TextField to collect player name
+
+    Scaffold(
+        topBar = {
+            Button(onClick = onBackClick) {
+                Text("Back")
+            }
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.Start
+        ) {
+            // Input field to add player's name
+            Text(text = "Enter your name:")
+            TextField(
+                value = playerName,
+                onValueChange = { playerName = it },
+                placeholder = { Text(text = "Your name") },
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+            )
+
+            Button(
+                onClick = {
+                    if (playerName.text.isNotBlank()) {
+                        gameViewModel.addScore(playerName.text)
+                        playerName = TextFieldValue("") // Reset the player name field
+                    }
+                },
+                modifier = Modifier.padding(bottom = 16.dp)
+            ) {
+                Text("Save Score")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(text = "Scoreboard", style = MaterialTheme.typography.headlineMedium)
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            scores.forEach { score ->
+                val formattedDate = Instant.ofEpochMilli(score.date)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+
+                Text(
+                    text = "Player: ${score.playerName} | Score: ${score.score} | Date: $formattedDate",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+        }
+    }}

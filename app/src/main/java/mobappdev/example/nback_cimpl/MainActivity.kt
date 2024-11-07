@@ -42,7 +42,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     // Create ViewModel and UserPreferencesRepository
                     val gameViewModel: GameVM = viewModel(factory = GameVM.Factory)
-                    val userPreferencesRepository = UserPreferencesRepository(dataStore =  applicationContext.dataStore)
+                    val userPreferencesRepository = UserPreferencesRepository(dataStore =  applicationContext.dataStore )
 
                     // Use state to manage which screen is currently active
                     val currentScreen = remember { mutableStateOf("home") }
@@ -50,20 +50,16 @@ class MainActivity : ComponentActivity() {
                     when (currentScreen.value) {
                         "home" -> HomeScreen(
                             vm = gameViewModel,
-                            onSettingsClick = { currentScreen.value = "settings" }, // Navigate to Settings Screen
+                            onSettingsClick = { currentScreen.value = "settings" },  // Navigate to Settings Screen
                             onScoreboardClick = { currentScreen.value = "scoreboard" } // Navigate to Scoreboard Screen
                         )
                         "settings" -> SettingsScreen(
-                            userPreferencesRepository = userPreferencesRepository,
-                            onBack = { currentScreen.value = "home" } // Navigate back to Home Screen
+                            userPreferencesRepository = gameViewModel.userPreferencesRepository,
+                            onBack = { currentScreen.value = "home" }  // Navigate back to Home Screen
                         )
                         "scoreboard" -> ScoreboardScreen(
-                            vm = gameViewModel,
-                            onBack = { currentScreen.value = "home" } // Navigate back to Home Screen
-                        ) // Navigate to Settings Screen
-                        "settings" -> SettingsScreen(
-                            userPreferencesRepository = userPreferencesRepository,
-                            onBack = { currentScreen.value = "home" } // Navigate back to Home Screen
+                            gameViewModel = gameViewModel,
+                            onBackClick = { currentScreen.value = "home" }  // Navigate back to Home Screen
                         )
                     }
                 }
