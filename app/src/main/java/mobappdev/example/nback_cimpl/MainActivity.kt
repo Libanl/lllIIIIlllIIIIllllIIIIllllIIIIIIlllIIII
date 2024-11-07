@@ -7,9 +7,13 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import mobappdev.example.nback_cimpl.data.UserPreferencesRepository
 import mobappdev.example.nback_cimpl.ui.screens.HomeScreen
+import mobappdev.example.nback_cimpl.ui.screens.SettingsScreen
 import mobappdev.example.nback_cimpl.ui.theme.NBack_CImplTheme
 
 /**
@@ -31,18 +35,32 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             NBack_CImplTheme {
-                // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // Instantiate the viewmodel
+                    // Get the GameApplication instance to access userPreferencesRepository
+                    val application = applicationContext as GameApplication
+                    val userPreferencesRepository = application.userPreferencesRepository
+
+                    // Create the ViewModel
                     val gameViewModel: GameVM = viewModel(
                         factory = GameVM.Factory
                     )
 
-                    // Instantiate the homescreen
-                    HomeScreen(vm = gameViewModel)
+                    // Use mutable state for navigation between screens
+                    val currentScreen = remember { mutableStateOf("home") }
+
+                    when (currentScreen.value) {
+                        "home" -> HomeScreen(
+                            vm = gameViewModel,
+                            onSettingsClick = { currentScreen.value = "settings" }
+                        )
+                        "settings" -> SettingsScreen(
+                            userPreferencesRepository = userPreferencesRepository,
+                            onBack = { currentScreen.value = "home" }
+                        )
+                    }
                 }
             }
         }

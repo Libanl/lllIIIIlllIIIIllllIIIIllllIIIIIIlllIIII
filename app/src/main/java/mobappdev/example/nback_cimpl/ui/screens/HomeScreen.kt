@@ -1,6 +1,7 @@
 package mobappdev.example.nback_cimpl.ui.screens
 
 import GameViewModel
+import android.annotation.SuppressLint
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,6 +24,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -59,15 +62,24 @@ import mobappdev.example.nback_cimpl.R
  */
 
 import androidx.compose.ui.platform.LocalContext
+import mobappdev.example.nback_cimpl.data.UserPreferencesRepository
+
+
+
 
 
 @Composable
 fun HomeScreen(
-    vm: GameViewModel
+    vm: GameViewModel,
+    onSettingsClick: () -> Unit // Add a callback for navigating to the settings screen
 ) {
     val highscore by vm.highscore.collectAsState()
     val score by vm.score.collectAsState()
     val gameState by vm.gameState.collectAsState()
+    val nBack by vm.nBack.collectAsState() // Correctly collect the value from StateFlow
+    val eventInterval by vm.eventInterval.collectAsState() // Correctly collect the value from StateFlow
+    val totalNrOfEvents by vm.totalNrOfEvents.collectAsState() // Correctly collect the value from StateFlow
+    val gridSize by vm.gridSize.collectAsState() // Observe grid size from ViewModel
     val snackBarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val showGrid = remember { mutableStateOf(false) }
@@ -100,11 +112,19 @@ fun HomeScreen(
                 style = MaterialTheme.typography.headlineMedium
             )
 
-            // Display Game Settings
+            // Display Game Settings using collected StateFlow values
             Text(
-                text = "Settings: ${gameState.gameType} | N: ${vm.nBack} | Interval: ${vm.eventInterval / 1000} seconds | Events in Round: ${vm.totalNrOfEvents}",
+                text = "Settings: ${gameState.gameType} | N: $nBack | Interval: ${eventInterval / 1000} seconds | Events in Round: $totalNrOfEvents",
                 style = MaterialTheme.typography.bodyMedium
             )
+
+            // Settings Button
+            Button(
+                modifier = Modifier.padding(bottom = 16.dp),
+                onClick = onSettingsClick // Navigate to the settings screen
+            ) {
+                Text(text = "Settings")
+            }
 
             // Reset Game Button
             Button(onClick = {
@@ -132,6 +152,7 @@ fun HomeScreen(
             if (showGrid.value && (gameState.gameType == GameVM.Companion.GameType.Visual || gameState.gameType == GameVM.Companion.GameType.AudioVisual)) {
                 GameGrid(
                     currentEventIndex = gameState.eventValue,
+                    gridSize = gridSize,  // Use the dynamic grid size from ViewModel
                     onCellClick = { selectedIndex ->
                         vm.checkMatch(selectedIndex)
                         // Directly use gameState.feedback for the snackbar message
@@ -257,19 +278,103 @@ fun HomeScreen(
 
 
 
+@Composable
+fun SettingsScreen(
+    userPreferencesRepository: UserPreferencesRepository,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
+    val numEvents by userPreferencesRepository.numEvents.collectAsState(initial = 20)
+    val timeBetweenEvents by userPreferencesRepository.timeBetweenEvents.collectAsState(initial = 2000)
+    val nBack by userPreferencesRepository.nBack.collectAsState(initial = 2)
+    val gridSize by userPreferencesRepository.gridSize.collectAsState(initial = 3)
+    val numSpokenLetters by userPreferencesRepository.numSpokenLetters.collectAsState(initial = 9)
+
+    Scaffold(
+        topBar = {
+            Button(onClick = onBack) {
+                Text("Back")
+            }
+        }
+    ) { paddingValues -> // use paddingValues here instead of "it"
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues) // Apply padding from the Scaffold
+                .padding(16.dp), // Additional padding for content
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.Start
+        ) {
+            Text(text = "Settings", style = MaterialTheme.typography.headlineMedium)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text("Number of Events in Round: $numEvents")
+            Slider(
+                value = numEvents.toFloat(),
+                onValueChange = {
+                    scope.launch { userPreferencesRepository.saveNumEvents(it.toInt()) }
+                },
+                valueRange = 10f..50f,
+                steps = 4
+            )
+
+            Text("Time Between Events (ms): $timeBetweenEvents")
+            Slider(
+                value = timeBetweenEvents.toFloat(),
+                onValueChange = {
+                    scope.launch { userPreferencesRepository.saveTimeBetweenEvents(it.toInt()) }
+                },
+                valueRange = 1000f..5000f,
+                steps = 3
+            )
+
+            Text("N for N-Back: $nBack")
+            Slider(
+                value = nBack.toFloat(),
+                onValueChange = {
+                    scope.launch { userPreferencesRepository.saveNBack(it.toInt()) }
+                },
+                valueRange = 1f..5f,
+                steps = 4
+            )
+
+            Text("Grid Size for Visual Stimuli: $gridSize x $gridSize")
+            Slider(
+                value = gridSize.toFloat(),
+                onValueChange = {
+                    scope.launch { userPreferencesRepository.saveGridSize(it.toInt()) }
+                },
+                valueRange = 3f..5f,
+                steps = 2
+            )
+
+            Text("Number of Spoken Letters: $numSpokenLetters")
+            Slider(
+                value = numSpokenLetters.toFloat(),
+                onValueChange = {
+                    scope.launch { userPreferencesRepository.saveNumSpokenLetters(it.toInt()) }
+                },
+                valueRange = 5f..15f,
+                steps = 5
+            )
+        }
+    }
+}
 
 
 @Composable
-fun GameGrid(currentEventIndex: Int, onCellClick: (Int) -> Unit) {
+fun GameGrid(currentEventIndex: Int, gridSize: Int, onCellClick: (Int) -> Unit) {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
+        columns = GridCells.Fixed(gridSize),
         contentPadding = PaddingValues(16.dp),
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
     ) {
-        items(9) { index ->
+        items(gridSize * gridSize) { index ->
             GridCell(
                 isActive = index == currentEventIndex,
                 onClick = { onCellClick(index) } // Pass cell index on click
@@ -294,6 +399,9 @@ fun GridCell(isActive: Boolean, onClick: () -> Unit) {
 fun HomeScreenPreview() {
     // Since I am injecting a VM into my homescreen that depends on Application context, the preview doesn't work.
     Surface(){
-        HomeScreen(GameVM.FakeVM())
+        HomeScreen(
+            GameVM.FakeVM(),
+            onSettingsClick = TODO()
+        )
     }
 }

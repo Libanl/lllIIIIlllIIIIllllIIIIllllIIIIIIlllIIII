@@ -23,9 +23,10 @@ interface GameViewModel {
     val gameState: StateFlow<GameVM.Companion.GameState>
     val score: StateFlow<Int>
     val highscore: StateFlow<Int>
-    val nBack: Int
-    val eventInterval: Long
-    val totalNrOfEvents: Int
+    val nBack: StateFlow<Int>
+    val eventInterval: StateFlow<Long>
+    val totalNrOfEvents: StateFlow<Int>
+    val gridSize: StateFlow<Int>
     fun setGameType(gameType: GameVM.Companion.GameType)
     fun startGame(context: Context)
     fun checkMatch(selectedIndex: Int)
@@ -42,16 +43,27 @@ class GameVM(
 
     private val _score = MutableStateFlow(0)
     override val score: StateFlow<Int> = _score.asStateFlow()
-    //En för varje "ruta" 9st.
+
     private val audioLetters = listOf("L", "I", "B", "A", "N", "F", "G", "H", "I")
 
     private val _highscore = MutableStateFlow(0)
     override val highscore: StateFlow<Int> = _highscore.asStateFlow()
-    override val nBack: Int = 2
+
+    // Observables from UserPreferencesRepository
+    private val _nBack = MutableStateFlow(2)
+    override val nBack: StateFlow<Int> = _nBack.asStateFlow()
+
+    private val _eventInterval = MutableStateFlow(2000L)
+    override val eventInterval: StateFlow<Long> = _eventInterval.asStateFlow()
+
+    private val _totalNrOfEvents = MutableStateFlow(20)
+    override val totalNrOfEvents: StateFlow<Int> = _totalNrOfEvents.asStateFlow()
+
+    private val _gridSize = MutableStateFlow(3)
+    override val gridSize: StateFlow<Int> = _gridSize.asStateFlow()
+
     private var job: Job? = null
-    override val eventInterval: Long = 2000L
     private val nBackHelper = NBackHelper()
-    override val totalNrOfEvents: Int = 20
     private var events: Array<Int> = emptyArray()
     private var currentEventIndex = 0
     private var correctResponses = 0
@@ -84,8 +96,10 @@ class GameVM(
         job?.cancel()
         resetGame()
 
-        // Generate the sequence of events
-        events = nBackHelper.generateNBackString(totalNrOfEvents, 9, 30, nBack).toTypedArray()
+        // Generate the sequence of events using updated preferences
+        val n = _nBack.value
+        val totalEvents = _totalNrOfEvents.value
+        events = nBackHelper.generateNBackString(totalEvents, _gridSize.value * _gridSize.value, 30, n).toTypedArray()
 
         // Launch a coroutine to handle game logic
         job = viewModelScope.launch {
@@ -152,10 +166,10 @@ class GameVM(
     override fun checkMatch(selectedIndex: Int) {
         val gameType = _gameState.value.gameType
 
-        if (currentEventIndex >= nBack) {
+        if (currentEventIndex >= _nBack.value) {
             // Visual Match Logic
             if (gameType == GameType.Visual || gameType == GameType.AudioVisual) {
-                val expectedVisualMatch = events[currentEventIndex - nBack]
+                val expectedVisualMatch = events[currentEventIndex - _nBack.value]
                 if (selectedIndex == expectedVisualMatch) {
                     _score.value += 1
                     correctResponses += 1
@@ -170,7 +184,7 @@ class GameVM(
 
             // Audio Match Logic (if it's AudioVisual or Audio mode)
             if (gameType == GameType.Audio || gameType == GameType.AudioVisual) {
-                val expectedAudioMatch = events[currentEventIndex - nBack]
+                val expectedAudioMatch = events[currentEventIndex - _nBack.value]
                 val currentAudioEvent = events[currentEventIndex]
 
                 if (currentAudioEvent == expectedAudioMatch) {
@@ -190,7 +204,7 @@ class GameVM(
     private suspend fun runVisualGame() {
         for (i in events.indices) {
             _gameState.value = _gameState.value.copy(eventValue = events[i], feedback = "")
-            delay(eventInterval)
+            delay(_eventInterval.value)
             currentEventIndex++
             _gameState.value = _gameState.value.copy(currentEventIndex = currentEventIndex)
         }
@@ -202,7 +216,6 @@ class GameVM(
     }
 
     private suspend fun runAudioGame() {
-        // Ensure TTS is initialized before starting
         while (!ttsInitialized) {
             delay(100)
         }
@@ -212,8 +225,7 @@ class GameVM(
             val letter = audioLetters[position]
             speakLetter(letter)
 
-            // Delay for user response, no visual display (audio-only mode)
-            delay(eventInterval)
+            delay(_eventInterval.value)
             currentEventIndex++
             _gameState.value = _gameState.value.copy(
                 currentEventIndex = currentEventIndex,
@@ -230,23 +242,19 @@ class GameVM(
     }
 
     private suspend fun runAudioVisualGame() {
-        // Ensure TTS is initialized before starting
         while (!ttsInitialized) {
             delay(100)
         }
 
         for (i in events.indices) {
-            val position = events[i] % 9  // Position for visual grid (3x3 grid)
-            val letter = audioLetters[position]  // Letter for auditory stimulus
+            val position = events[i] % (_gridSize.value * _gridSize.value)
+            val letter = audioLetters[position % audioLetters.size]
 
-            // Update both visual and auditory event values in the game state
             _gameState.value = _gameState.value.copy(eventValue = position, audioValue = position, feedback = "")
 
-            // Speak the auditory letter
             speakLetter(letter)
 
-            // Delay to allow the user to respond to both stimuli
-            delay(eventInterval)
+            delay(_eventInterval.value)
 
             currentEventIndex++
             _gameState.value = _gameState.value.copy(currentEventIndex = currentEventIndex)
@@ -254,7 +262,6 @@ class GameVM(
             if (job?.isCancelled == true) break
         }
 
-        // After all events are completed
         _gameState.value = _gameState.value.copy(
             eventValue = -1,
             audioValue = -1,
@@ -276,6 +283,30 @@ class GameVM(
         viewModelScope.launch {
             userPreferencesRepository.highscore.collect { highScore ->
                 _highscore.value = highScore
+            }
+        }
+
+        viewModelScope.launch {
+            userPreferencesRepository.numEvents.collect { numEvents ->
+                _totalNrOfEvents.value = numEvents
+            }
+        }
+
+        viewModelScope.launch {
+            userPreferencesRepository.timeBetweenEvents.collect { interval ->
+                _eventInterval.value = interval.toLong()
+            }
+        }
+
+        viewModelScope.launch {
+            userPreferencesRepository.nBack.collect { n ->
+                _nBack.value = n
+            }
+        }
+
+        viewModelScope.launch {
+            userPreferencesRepository.gridSize.collect { size ->
+                _gridSize.value = size
             }
         }
     }
@@ -311,20 +342,24 @@ class GameVM(
 
 
 
+
+
     class FakeVM : GameViewModel {
-        override val gameState: StateFlow<GameState>
+        override val gameState: StateFlow<GameVM.Companion.GameState>
             get() = TODO("Not yet implemented")
 
         override val score: StateFlow<Int>
             get() = MutableStateFlow(2).asStateFlow()
         override val highscore: StateFlow<Int>
             get() = MutableStateFlow(42).asStateFlow()
-        override val nBack: Int
-            get() = 2
-        override val eventInterval: Long
-            get() = 2000;
-        override val totalNrOfEvents: Int
-            get() = 20;
+        override val nBack: StateFlow<Int>
+            get() = TODO("Not yet implemented")
+        override val eventInterval: StateFlow<Long>
+            get() = TODO("Not yet implemented")
+        override val totalNrOfEvents: StateFlow<Int>
+            get() = TODO("Not yet implemented")
+        override val gridSize: StateFlow<Int>
+            get() = TODO("Not yet implemented")
 
         override fun setGameType(gameType: GameVM.Companion.GameType) {
         }
@@ -341,8 +376,8 @@ class GameVM(
         override fun matchDetected() {
 
         }
-    }
-}
+    }}
+
 
 
 
